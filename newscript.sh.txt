@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Variables
+SOURCE_DIR="/root/backupdata" 
+BACKUP_DIR="/root"
+DATE=$(date +%Y-%m-%d)
+BACKUP_FILE="$BACKUP_DIR/backup$DATE.tar.gz"
+KEYPEM_DIR="/root/Downloads/project2.pem" 
+BACKUP_SERVER_NAME="project2" BACKUP_SERVER_IP="54.71.32.150" 
+BACKUP_SERVER_DIR="s3://project02/" 
+ADMIN_EMAIL="kayboateng360@gmail.com"
+
+send_email() {
+    local subject=$1
+    local message=$2
+    echo "$message" | mutt -s "$subject" "$ADMIN_EMAIL"
+}
+
+# Create source directory (if not exists)
+mkdir -p "$SOURCE_DIR"
+if [ $? -eq 0 ]; then
+    send_email "Creating Source Directory" "Successfully created the SOURCE DIRECTORY"
+else
+    send_email "Creating Source Directory" "Failed at creating SOURCE DIRECTORY"
+    exit 1
+fi
+
+# Touch files (if needed)
+touch "$SOURCE_DIR/file1.txt" "$SOURCE_DIR/file1.pdf" "$SOURCE_DIR/file1.docx"
+if [ $? -eq 0 ]; then
+    send_email "Creating Sub Files" "Successfully created subfiles in SOURCE DIRECTORY"
+else
+    send_email "Creating Sub Files" "Failed at creating subfiles in SOURCE DIRECTORY"
+    exit 1
+fi
+
+# Sleep for a while (if needed)
+sleep 10s
+
+# Create backup
+tar -czvf "$BACKUP_FILE" "$SOURCE_DIR"
+if [ $? -eq 0 ]; then
+    send_email "Creating Backup" "Successfully created a zipped backup file"
+    sleep 10s
+
+    # Sync backup to S3
+    aws s3 sync "$BACKUP_FILE" "$BACKUP_SERVER_DIR"
+    if [ $? -eq 0 ]; then
+        send_email "Send Backup" "Backup successfully sent to S3 bucket $BACKUP_SERVER_NAME"
+    else
+        send_email "Send Backup" "Couldn't send backup to S3 bucket $BACKUP_SERVER_NAME"
+    fi
+else
+    send_email "Creating Backup" "Failed at creating the backup file"
+    exit 1
+fi
+
+
